@@ -2,15 +2,18 @@ import "./App.css";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import Home from "./pages/Home/Home";
 import EmotionFace from "./pages/Emotion_face/Emotion_face";
-import CameraIdentify from "./pages/Camera_identify/Camera_identify";
-import VoiceAssistant from "./pages/Voice_check/VoiceCheck";
 
 function App() {
   return (
     <>
       <Router>
         <header className="navbar">
-          <h3 className="logo ">Odkoo's AI</h3>
+          <h3
+            className="logo "
+            onClick={() => (window.location.pathname = "/")}
+          >
+            Odkoo's AI
+          </h3>
           <button
             className="menu-toggle"
             onClick={() =>
