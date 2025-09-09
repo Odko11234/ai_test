@@ -2,33 +2,54 @@ import React, { useEffect, useRef, useState } from "react";
 import "@tensorflow/tfjs";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
 
-const Camera_identify = () => {
+const CameraIdentify = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const [facingMode, setFacingMode] = useState("environment");
+  const [facingMode, setFacingMode] = useState("environment"); // back camera
   const modelRef = useRef(null);
+  const [stream, setStream] = useState(null);
 
   useEffect(() => {
-    let stream;
+    let mounted = true;
+
     const setupCamera = async () => {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode },
-        audio: false,
-      });
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+
+      try {
+        const newStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode },
+          audio: false,
+        });
+        if (!mounted) return;
+
+        setStream(newStream);
+        if (videoRef.current) videoRef.current.srcObject = newStream;
+      } catch (err) {
+        console.error("Camera error:", err);
+      }
     };
 
-    const runDetection = async () => {
+    const loadModel = async () => {
+      modelRef.current = await cocoSsd.load();
+    };
+
+    const runDetection = () => {
       if (!videoRef.current || !canvasRef.current || !modelRef.current) return;
+
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
 
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-
       const detectFrame = async () => {
-        if (!modelRef.current) return;
+        if (video.readyState < 2) {
+          requestAnimationFrame(detectFrame);
+          return;
+        }
+
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
 
         const predictions = await modelRef.current.detect(video);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -55,21 +76,27 @@ const Camera_identify = () => {
     };
 
     const init = async () => {
+      await loadModel();
       await setupCamera();
-      modelRef.current = await cocoSsd.load();
-      if (videoRef.current) videoRef.current.onloadedmetadata = runDetection;
+
+      if (videoRef.current) {
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current.play();
+          runDetection();
+        };
+      }
     };
 
     init();
 
     return () => {
+      mounted = false;
       if (stream) stream.getTracks().forEach((track) => track.stop());
     };
   }, [facingMode]);
 
   return (
     <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
-      {/* Камер сонгох dropdown */}
       <div
         style={{
           position: "absolute",
@@ -104,8 +131,6 @@ const Camera_identify = () => {
         playsInline
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
           width: "100%",
           height: "100%",
           objectFit: "cover",
@@ -125,4 +150,4 @@ const Camera_identify = () => {
   );
 };
 
-export default Camera_identify;
+export default CameraIdentify;
