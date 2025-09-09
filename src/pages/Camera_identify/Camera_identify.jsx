@@ -10,39 +10,27 @@ const Camera_identify = () => {
 
   useEffect(() => {
     let stream;
-
     const setupCamera = async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode },
-          audio: false,
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (err) {
-        console.error("Camera error:", err);
-      }
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode },
+        audio: false,
+      });
+      if (videoRef.current) videoRef.current.srcObject = stream;
     };
 
     const runDetection = async () => {
       if (!videoRef.current || !canvasRef.current || !modelRef.current) return;
-
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
 
       const detectFrame = async () => {
-        if (!modelRef.current || video.readyState !== 4) {
-          requestAnimationFrame(detectFrame);
-          return;
-        }
+        if (!modelRef.current) return;
 
         const predictions = await modelRef.current.detect(video);
-
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
@@ -69,20 +57,13 @@ const Camera_identify = () => {
     const init = async () => {
       await setupCamera();
       modelRef.current = await cocoSsd.load();
-
-      if (videoRef.current) {
-        videoRef.current.onloadeddata = () => {
-          runDetection();
-        };
-      }
+      if (videoRef.current) videoRef.current.onloadedmetadata = runDetection;
     };
 
     init();
 
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      if (stream) stream.getTracks().forEach((track) => track.stop());
     };
   }, [facingMode]);
 
