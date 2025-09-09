@@ -22,7 +22,7 @@ function App() {
           <nav className="nav-links">
             <Link to="/">Home</Link>
             <Link to="/emotion_face">Emotion Face</Link>
-            <Link to="/camera_identify">Camera Identify</Link>
+            {/* <Link to="/camera_identify">Camera Identify</Link> */}
           </nav>
         </header>
 
@@ -30,9 +30,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/emotion_face" element={<EmotionFace />} />
-            <Route path="/camera_identify" element={<CameraIdentify />} />
+            {/* <Route path="/camera_identify" element={<CameraIdentify />} /> */}
           </Routes>
-          {/* <VoiceAssistant /> */}
         </main>
       </Router>
     </>

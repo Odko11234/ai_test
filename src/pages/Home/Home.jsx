@@ -1,5 +1,11 @@
+import VoiceAssistant from "../Voice_check/VoiceCheck";
+
 const Home = () => {
-  return <div>Home</div>;
+  return (
+    <div>
+      <VoiceAssistant />
+    </div>
+  );
 };
 
 export default Home;
