@@ -3,10 +3,9 @@ import "@tensorflow/tfjs";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
 
 const Camera_identify = () => {
-  const videoRef = useRef < HTMLVideoElement > null;
-  const canvasRef = useRef < HTMLCanvasElement > null;
-  const [facingMode, setFacingMode] =
-    (useState < "user") | ("environment" > "environment");
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const [facingMode, setFacingMode] = useState("environment");
 
   useEffect(() => {
     let model = null;
