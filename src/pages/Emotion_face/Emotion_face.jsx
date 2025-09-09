@@ -5,19 +5,27 @@ const CameraEmotion = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [emotion, setEmotion] = useState("");
-  const [facingMode, setFacingMode] = useState("user"); // default selfie
+  const [devices, setDevices] = useState([]); // бүх камерын жагсаалт
+  const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
 
   useEffect(() => {
     let stream;
 
-    const startVideo = async () => {
+    const getDevices = async () => {
+      const allDevices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = allDevices.filter((d) => d.kind === "videoinput");
+      setDevices(videoDevices);
+      if (videoDevices[0]) setSelectedDeviceId(videoDevices[0].deviceId);
+    };
+
+    const startVideo = async (deviceId) => {
       try {
         if (stream) {
           stream.getTracks().forEach((track) => track.stop());
         }
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode }, // "user" = selfie, "environment" = back
+          video: deviceId ? { deviceId: { exact: deviceId } } : true,
         });
         if (videoRef.current) videoRef.current.srcObject = stream;
       } catch (err) {
@@ -89,8 +97,7 @@ const CameraEmotion = () => {
 
     const init = async () => {
       await loadModels();
-      await startVideo();
-      if (videoRef.current) videoRef.current.onloadedmetadata = detectEmotion;
+      await getDevices();
     };
 
     init();
@@ -100,7 +107,32 @@ const CameraEmotion = () => {
         stream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [facingMode, modelsLoaded]);
+  }, [modelsLoaded]);
+
+  // сонгосон deviceId өөрчлөгдөхөд видео эхлүүлэх
+  useEffect(() => {
+    if (selectedDeviceId) {
+      navigator.mediaDevices
+        .getUserMedia({ video: { deviceId: { exact: selectedDeviceId } } })
+        .then((stream) => {
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.onloadedmetadata = () => {
+              videoRef.current.play();
+              setTimeout(() => {
+                // detect эхлүүлэх
+                if (videoRef.current) {
+                  videoRef.current.onloadedmetadata = null;
+                  const event = new Event("loadedmetadata");
+                  videoRef.current.dispatchEvent(event);
+                }
+              }, 500);
+            };
+          }
+        })
+        .catch((err) => console.error("Camera error:", err));
+    }
+  }, [selectedDeviceId]);
 
   return (
     <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
@@ -118,8 +150,8 @@ const CameraEmotion = () => {
       >
         <label style={{ color: "white", marginRight: "8px" }}>📷 Camera:</label>
         <select
-          value={facingMode}
-          onChange={(e) => setFacingMode(e.target.value)}
+          value={selectedDeviceId || ""}
+          onChange={(e) => setSelectedDeviceId(e.target.value)}
           style={{
             padding: "6px 10px",
             borderRadius: "6px",
@@ -127,8 +159,11 @@ const CameraEmotion = () => {
             fontSize: "16px",
           }}
         >
-          <option value="user">Selfie Camera</option>
-          <option value="environment">Back Camera</option>
+          {devices.map((device, i) => (
+            <option key={device.deviceId} value={device.deviceId}>
+              {device.label || `Camera ${i + 1}`}
+            </option>
+          ))}
         </select>
       </div>
 
