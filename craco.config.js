@@ -1,7 +1,8 @@
+// craco.config.js
 module.exports = {
   webpack: {
     configure: (webpackConfig) => {
-      // source map loader-г face-api.js-г алгасах
+      // face-api.js source map warning-г алгасах
       webpackConfig.module.rules.push({
         test: /\.js$/,
         enforce: "pre",
@@ -9,11 +10,16 @@ module.exports = {
         exclude: /node_modules\/face-api\.js/,
       });
 
-      // Бүх source map warning-г алгасах
+      // Бүх source map warning-г алгасах, мөн fs warning-г алгасах
       webpackConfig.ignoreWarnings = [
         (warning) =>
           warning.message.includes("Failed to parse source map") &&
-          /face-api\.js/.test(warning.module.resource),
+          (/face-api\.js/.test(warning.module?.resource || "") ||
+            /@tensorflow-models/.test(warning.module?.resource || "")),
+
+        (warning) =>
+          warning.message.includes("Can't resolve 'fs'") &&
+          /face-api\.js/.test(warning.module?.resource || ""),
       ];
 
       return webpackConfig;
