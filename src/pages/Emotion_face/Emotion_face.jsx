@@ -1,202 +1,156 @@
-// // CameraEmotion.jsx
-// import React, { useEffect, useRef, useState } from "react";
-// import * as faceapi from "face-api.js";
+import React, { useEffect, useRef, useState } from "react";
+import * as faceapi from "face-api.js";
 
-// const CameraEmotion = () => {
-//   const videoRef = useRef(null);
-//   const canvasRef = useRef(null);
-//   const [emotion, setEmotion] = useState("");
-//   const [facingMode, setFacingMode] = useState("user"); // default selfie camera
-//   const streamRef = useRef(null);
-//   const [modelsLoaded, setModelsLoaded] = useState(false);
+const CameraAgeGender = () => {
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const [info, setInfo] = useState("");
 
-//   // 🔹 FaceAPI models ачаалах
-//   useEffect(() => {
-//     const loadModels = async () => {
-//       const MODEL_URL =
-//         "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights";
-//       await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-//       await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
-//       setModelsLoaded(true);
-//     };
-//     loadModels();
-//   }, []);
+  // Emotion-г Монгол хэл рүү хөрвүүлэх map
+  const emotionMap = {
+    happy: "Баяртай",
+    sad: "Уйтгарласан",
+    angry: "Ууртай",
+    fearful: "Айсан",
+    disgusted: "Жигшсэн",
+    surprised: "Гайхсан",
+    neutral: "Тогтвортой",
+  };
 
-//   // 🔹 Камераа эхлүүлэх
-//   useEffect(() => {
-//     const startVideo = async () => {
-//       try {
-//         // өмнөх stream-г зогсоох
-//         if (streamRef.current) {
-//           streamRef.current.getTracks().forEach((t) => t.stop());
-//         }
+  useEffect(() => {
+    let stream;
 
-//         const stream = await navigator.mediaDevices.getUserMedia({
-//           video: { facingMode },
-//         });
+    const startVideo = async () => {
+      try {
+        if (stream) stream.getTracks().forEach((t) => t.stop());
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      } catch (err) {
+        console.error("Camera error:", err);
+      }
+    };
 
-//         streamRef.current = stream;
-//         if (videoRef.current) {
-//           videoRef.current.srcObject = stream;
-//         }
-//       } catch (err) {
-//         console.error("Camera error:", err);
-//       }
-//     };
+    const loadModels = async () => {
+      const MODEL_URL = process.env.PUBLIC_URL + "/models";
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
+      await faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL);
+    };
 
-//     if (modelsLoaded) {
-//       startVideo();
-//     }
+    const detect = async () => {
+      if (!videoRef.current || !canvasRef.current) return;
 
-//     return () => {
-//       if (streamRef.current) {
-//         streamRef.current.getTracks().forEach((t) => t.stop());
-//       }
-//     };
-//   }, [facingMode, modelsLoaded]);
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
 
-//   // 🔹 Emotion detection
-//   useEffect(() => {
-//     if (!modelsLoaded) return;
+      const displaySize = {
+        width: video.videoWidth || 640,
+        height: video.videoHeight || 480,
+      };
+      canvas.width = displaySize.width;
+      canvas.height = displaySize.height;
+      faceapi.matchDimensions(canvas, displaySize);
 
-//     const detectEmotion = async () => {
-//       if (!videoRef.current || !canvasRef.current) return;
+      const run = async () => {
+        const detections = await faceapi
+          .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+          .withFaceExpressions()
+          .withAgeAndGender();
 
-//       const video = videoRef.current;
-//       const canvas = canvasRef.current;
-//       const ctx = canvas.getContext("2d");
+        const resized = faceapi.resizeResults(detections, displaySize);
 
-//       const displaySize = {
-//         width: video.videoWidth || 640,
-//         height: video.videoHeight || 480,
-//       };
-//       canvas.width = displaySize.width;
-//       canvas.height = displaySize.height;
-//       faceapi.matchDimensions(canvas, displaySize);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-//       const runDetection = async () => {
-//         const detections = await faceapi
-//           .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-//           .withFaceExpressions();
+        resized.forEach((det) => {
+          const { x, y, width, height } = det.detection.box;
+          ctx.strokeStyle = "red";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x, y, width, height);
 
-//         const resized = faceapi.resizeResults(detections, displaySize);
+          // Emotion
+          const expressions = det.expressions;
+          const topEmotion = Object.keys(expressions).reduce((a, b) =>
+            expressions[a] > expressions[b] ? a : b
+          );
+          const emotionMn = emotionMap[topEmotion] || topEmotion;
 
-//         ctx.clearRect(0, 0, canvas.width, canvas.height);
-//         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          // Age + Gender
+          const age = Math.round(det.age);
+          const gender = det.gender === "male" ? "Эрэгтэй" : "Эмэгтэй";
 
-//         resized.forEach((det) => {
-//           const { x, y, width, height } = det.detection.box;
-//           ctx.strokeStyle = "red";
-//           ctx.lineWidth = 2;
-//           ctx.strokeRect(x, y, width, height);
+          const text = `${gender}, ~${age} нас, ${emotionMn}`;
+          ctx.font = "16px Arial";
+          ctx.fillStyle = "red";
+          ctx.fillText(text, x, y > 20 ? y - 8 : y + 22);
 
-//           const expressions = det.expressions;
-//           const topEmotion = Object.keys(expressions).reduce((a, b) =>
-//             expressions[a] > expressions[b] ? a : b
-//           );
-//           ctx.font = "18px Arial";
-//           ctx.fillStyle = "red";
-//           ctx.fillText(topEmotion, x, y > 20 ? y - 8 : y + 22);
-//         });
+          setInfo(text);
+        });
 
-//         setEmotion(
-//           resized[0]?.expressions
-//             ? Object.keys(resized[0].expressions).reduce((a, b) =>
-//                 resized[0].expressions[a] > resized[0].expressions[b] ? a : b
-//               )
-//             : ""
-//         );
+        requestAnimationFrame(run);
+      };
 
-//         requestAnimationFrame(runDetection);
-//       };
+      run();
+    };
 
-//       runDetection();
-//     };
+    const init = async () => {
+      await loadModels();
+      await startVideo();
+      if (videoRef.current) videoRef.current.onloadedmetadata = detect;
+    };
 
-//     if (videoRef.current) {
-//       videoRef.current.onloadedmetadata = detectEmotion;
-//     }
-//   }, [modelsLoaded, facingMode]);
+    init();
 
-//   return (
-//     <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
-//       {/* Камера сонгох dropdown */}
-//       <div
-//         style={{
-//           position: "absolute",
-//           top: 10,
-//           left: 10,
-//           zIndex: 10,
-//           background: "rgba(0,0,0,0.6)",
-//           padding: "10px",
-//           borderRadius: "8px",
-//         }}
-//       >
-//         <label style={{ color: "white", marginRight: "8px" }}>📷 Camera:</label>
-//         <select
-//           value={facingMode}
-//           onChange={(e) => setFacingMode(e.target.value)}
-//           style={{
-//             padding: "6px 10px",
-//             borderRadius: "6px",
-//             border: "none",
-//             fontSize: "16px",
-//           }}
-//         >
-//           <option value="user">Selfie Camera</option>
-//           <option value="environment">Back Camera</option>
-//         </select>
-//       </div>
+    return () => {
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
 
-//       <video
-//         ref={videoRef}
-//         autoPlay
-//         muted
-//         playsInline
-//         style={{
-//           position: "absolute",
-//           width: "100%",
-//           height: "100%",
-//           objectFit: "cover",
-//         }}
-//       />
-//       <canvas
-//         ref={canvasRef}
-//         style={{
-//           position: "absolute",
-//           top: 0,
-//           left: 0,
-//           width: "100%",
-//           height: "100%",
-//         }}
-//       />
-//       {emotion && (
-//         <div
-//           style={{
-//             position: "absolute",
-//             bottom: 20,
-//             left: "50%",
-//             transform: "translateX(-50%)",
-//             background: "rgba(0,0,0,0.6)",
-//             color: "#fff",
-//             padding: "6px 12px",
-//             borderRadius: "8px",
-//             fontSize: "18px",
-//             fontWeight: "bold",
-//             textTransform: "capitalize",
-//           }}
-//         >
-//           {emotion}
-//         </div>
-//       )}
-//     </div>
-//   );
-// };
-
-// export default CameraEmotion;
-
-const Emotion_face = () => {
-  return <div>Emotion_face</div>;
+  return (
+    <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        playsInline
+        style={{
+          position: "absolute",
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+        }}
+      />
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+        }}
+      />
+      {info && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 20,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(0,0,0,0.6)",
+            color: "#fff",
+            padding: "6px 12px",
+            borderRadius: "8px",
+            fontSize: "16px",
+            fontWeight: "bold",
+          }}
+        >
+          {info}
+        </div>
+      )}
+    </div>
+  );
 };
 
-export default Emotion_face;
+export default CameraAgeGender;

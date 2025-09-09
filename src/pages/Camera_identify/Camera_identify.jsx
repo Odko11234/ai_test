@@ -97,12 +97,18 @@ const CameraIdentify = () => {
   }, [facingMode]);
 
   return (
-    <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
+    <div
+      style={{
+        position: "relative",
+        width: "100vw",
+        height: "90vh",
+      }}
+    >
       <div
         style={{
           position: "absolute",
           top: 10,
-          left: 10,
+          right: 10,
           zIndex: 10,
           background: "rgba(0,0,0,0.6)",
           padding: "10px",

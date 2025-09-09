@@ -1,37 +1,39 @@
 import "./App.css";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import Home from "./pages/Home/Home";
 import EmotionFace from "./pages/Emotion_face/Emotion_face";
 import CameraIdentify from "./pages/Camera_identify/Camera_identify";
+import VoiceAssistant from "./pages/Voice_check/VoiceCheck";
 
 function App() {
   return (
     <>
-      <div>
-        <h1 style={{ textAlign: "center" }}>Odkoo's AI</h1>
-        <div>
-          {" "}
-          <a href="/" style={{ margin: "10px" }}>
-            Home
-          </a>
-        </div>
-        <div>
-          <a href="/emotion_face" style={{ margin: "10px" }}>
-            Emotion Face
-          </a>
-        </div>
-        <div>
-          <a href="/camera_identify" style={{ margin: "10px" }}>
-            Camera Identify
-          </a>
-        </div>
-      </div>
       <Router>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/emotion_face" element={<EmotionFace />} />
-          <Route path="/camera_identify" element={<CameraIdentify />} />
-        </Routes>
+        <header className="navbar">
+          <h3 className="logo ">Odkoo's AI</h3>
+          <button
+            className="menu-toggle"
+            onClick={() =>
+              document.querySelector(".nav-links").classList.toggle("open")
+            }
+          >
+            ☰
+          </button>
+          <nav className="nav-links">
+            <Link to="/">Home</Link>
+            <Link to="/emotion_face">Emotion Face</Link>
+            <Link to="/camera_identify">Camera Identify</Link>
+          </nav>
+        </header>
+
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/emotion_face" element={<EmotionFace />} />
+            <Route path="/camera_identify" element={<CameraIdentify />} />
+          </Routes>
+          {/* <VoiceAssistant /> */}
+        </main>
       </Router>
     </>
   );
