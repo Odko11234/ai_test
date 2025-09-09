@@ -5,12 +5,19 @@ const CameraEmotion = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [emotion, setEmotion] = useState("");
+  const [facingMode, setFacingMode] = useState("user"); // default selfie
+  const [modelsLoaded, setModelsLoaded] = useState(false);
 
   useEffect(() => {
+    let stream;
+
     const startVideo = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+        }
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode }, // "user" = selfie, "environment" = back
         });
         if (videoRef.current) videoRef.current.srcObject = stream;
       } catch (err) {
@@ -23,10 +30,12 @@ const CameraEmotion = () => {
         "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights";
       await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
       await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
+      setModelsLoaded(true);
     };
 
-    const detect = async () => {
-      if (!videoRef.current || !canvasRef.current) return;
+    const detectEmotion = async () => {
+      if (!videoRef.current || !canvasRef.current || !modelsLoaded) return;
+
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
@@ -81,14 +90,48 @@ const CameraEmotion = () => {
     const init = async () => {
       await loadModels();
       await startVideo();
-      if (videoRef.current) videoRef.current.onloadedmetadata = detect;
+      if (videoRef.current) videoRef.current.onloadedmetadata = detectEmotion;
     };
 
     init();
-  }, []);
+
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [facingMode, modelsLoaded]);
 
   return (
     <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
+      {/* Camera сонгох dropdown */}
+      <div
+        style={{
+          position: "absolute",
+          top: 10,
+          left: 10,
+          zIndex: 10,
+          background: "rgba(0,0,0,0.6)",
+          padding: "10px",
+          borderRadius: "8px",
+        }}
+      >
+        <label style={{ color: "white", marginRight: "8px" }}>📷 Camera:</label>
+        <select
+          value={facingMode}
+          onChange={(e) => setFacingMode(e.target.value)}
+          style={{
+            padding: "6px 10px",
+            borderRadius: "6px",
+            border: "none",
+            fontSize: "16px",
+          }}
+        >
+          <option value="user">Selfie Camera</option>
+          <option value="environment">Back Camera</option>
+        </select>
+      </div>
+
       <video
         ref={videoRef}
         autoPlay
