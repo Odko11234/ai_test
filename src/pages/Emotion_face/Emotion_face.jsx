@@ -27,13 +27,16 @@ const CameraEmotion = () => {
 
     const detect = async () => {
       if (!videoRef.current || !canvasRef.current) return;
-      const canvas = canvasRef.current;
       const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
 
       const displaySize = {
-        width: video.videoWidth,
-        height: video.videoHeight,
+        width: video.videoWidth || 640,
+        height: video.videoHeight || 480,
       };
+      canvas.width = displaySize.width;
+      canvas.height = displaySize.height;
       faceapi.matchDimensions(canvas, displaySize);
 
       const runDetection = async () => {
@@ -42,7 +45,7 @@ const CameraEmotion = () => {
           .withFaceExpressions();
 
         const resized = faceapi.resizeResults(detections, displaySize);
-        const ctx = canvas.getContext("2d");
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
@@ -56,13 +59,11 @@ const CameraEmotion = () => {
           const topEmotion = Object.keys(expressions).reduce((a, b) =>
             expressions[a] > expressions[b] ? a : b
           );
-
           ctx.font = "18px Arial";
           ctx.fillStyle = "red";
           ctx.fillText(topEmotion, x, y > 20 ? y - 8 : y + 22);
         });
 
-        // Хамгийн эхний detected face-ийн emotion-г state-д хадгалах
         setEmotion(
           resized[0]?.expressions
             ? Object.keys(resized[0].expressions).reduce((a, b) =>
@@ -80,7 +81,7 @@ const CameraEmotion = () => {
     const init = async () => {
       await loadModels();
       await startVideo();
-      videoRef.current.onloadeddata = detect;
+      if (videoRef.current) videoRef.current.onloadedmetadata = detect;
     };
 
     init();
