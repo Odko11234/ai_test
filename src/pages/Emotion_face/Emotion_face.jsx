@@ -5,34 +5,12 @@ const CameraEmotion = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [emotion, setEmotion] = useState("");
-  const [devices, setDevices] = useState([]); // бүх камерын жагсаалт
-  const [selectedDeviceId, setSelectedDeviceId] = useState(null);
+  const [facingMode, setFacingMode] = useState("user"); // default selfie
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const streamRef = useRef(null);
 
+  // 🔹 FaceAPI models ачаалах
   useEffect(() => {
-    let stream;
-
-    const getDevices = async () => {
-      const allDevices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = allDevices.filter((d) => d.kind === "videoinput");
-      setDevices(videoDevices);
-      if (videoDevices[0]) setSelectedDeviceId(videoDevices[0].deviceId);
-    };
-
-    const startVideo = async (deviceId) => {
-      try {
-        if (stream) {
-          stream.getTracks().forEach((track) => track.stop());
-        }
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: deviceId ? { deviceId: { exact: deviceId } } : true,
-        });
-        if (videoRef.current) videoRef.current.srcObject = stream;
-      } catch (err) {
-        console.error("Camera error:", err);
-      }
-    };
-
     const loadModels = async () => {
       const MODEL_URL =
         "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights";
@@ -40,9 +18,48 @@ const CameraEmotion = () => {
       await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
       setModelsLoaded(true);
     };
+    loadModels();
+  }, []);
+
+  // 🔹 Камераа эхлүүлэх
+  useEffect(() => {
+    const startVideo = async () => {
+      try {
+        // өмнөх stream зогсоох
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((t) => t.stop());
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode },
+        });
+
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (err) {
+        console.error("Camera error:", err);
+      }
+    };
+
+    if (modelsLoaded) {
+      startVideo();
+    }
+
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, [facingMode, modelsLoaded]);
+
+  // 🔹 Emotion detection
+  useEffect(() => {
+    if (!modelsLoaded) return;
 
     const detectEmotion = async () => {
-      if (!videoRef.current || !canvasRef.current || !modelsLoaded) return;
+      if (!videoRef.current || !canvasRef.current) return;
 
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -95,44 +112,11 @@ const CameraEmotion = () => {
       runDetection();
     };
 
-    const init = async () => {
-      await loadModels();
-      await getDevices();
-    };
-
-    init();
-
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [modelsLoaded]);
-
-  // сонгосон deviceId өөрчлөгдөхөд видео эхлүүлэх
-  useEffect(() => {
-    if (selectedDeviceId) {
-      navigator.mediaDevices
-        .getUserMedia({ video: { deviceId: { exact: selectedDeviceId } } })
-        .then((stream) => {
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.onloadedmetadata = () => {
-              videoRef.current.play();
-              setTimeout(() => {
-                // detect эхлүүлэх
-                if (videoRef.current) {
-                  videoRef.current.onloadedmetadata = null;
-                  const event = new Event("loadedmetadata");
-                  videoRef.current.dispatchEvent(event);
-                }
-              }, 500);
-            };
-          }
-        })
-        .catch((err) => console.error("Camera error:", err));
+    // Video бэлэн болмогц detection эхлүүлэх
+    if (videoRef.current) {
+      videoRef.current.onloadedmetadata = detectEmotion;
     }
-  }, [selectedDeviceId]);
+  }, [modelsLoaded, facingMode]);
 
   return (
     <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
@@ -150,8 +134,8 @@ const CameraEmotion = () => {
       >
         <label style={{ color: "white", marginRight: "8px" }}>📷 Camera:</label>
         <select
-          value={selectedDeviceId || ""}
-          onChange={(e) => setSelectedDeviceId(e.target.value)}
+          value={facingMode}
+          onChange={(e) => setFacingMode(e.target.value)}
           style={{
             padding: "6px 10px",
             borderRadius: "6px",
@@ -159,11 +143,8 @@ const CameraEmotion = () => {
             fontSize: "16px",
           }}
         >
-          {devices.map((device, i) => (
-            <option key={device.deviceId} value={device.deviceId}>
-              {device.label || `Camera ${i + 1}`}
-            </option>
-          ))}
+          <option value="user">Selfie Camera</option>
+          <option value="environment">Back Camera</option>
         </select>
       </div>
 

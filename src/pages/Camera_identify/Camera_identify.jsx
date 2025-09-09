@@ -5,25 +5,26 @@ import * as cocoSsd from "@tensorflow-models/coco-ssd";
 const CameraIdentify = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const [facingMode, setFacingMode] = useState("environment"); // back camera
   const modelRef = useRef(null);
+  const [facingMode, setFacingMode] = useState("environment"); // back camera
   const [stream, setStream] = useState(null);
 
+  // Stream болон detection
   useEffect(() => {
     let mounted = true;
 
+    const stopStream = () => {
+      if (stream) stream.getTracks().forEach((track) => track.stop());
+    };
+
     const setupCamera = async () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-
+      stopStream();
       try {
-        const newStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode },
-          audio: false,
-        });
+        const constraints = { video: { facingMode }, audio: false };
+        const newStream = await navigator.mediaDevices.getUserMedia(
+          constraints
+        );
         if (!mounted) return;
-
         setStream(newStream);
         if (videoRef.current) videoRef.current.srcObject = newStream;
       } catch (err) {
@@ -32,7 +33,7 @@ const CameraIdentify = () => {
     };
 
     const loadModel = async () => {
-      modelRef.current = await cocoSsd.load();
+      if (!modelRef.current) modelRef.current = await cocoSsd.load();
     };
 
     const runDetection = () => {
@@ -91,7 +92,7 @@ const CameraIdentify = () => {
 
     return () => {
       mounted = false;
-      if (stream) stream.getTracks().forEach((track) => track.stop());
+      stopStream();
     };
   }, [facingMode]);
 
