@@ -1,9 +1,9 @@
-// ObjectDetection.js
-import React, { useRef, useEffect } from "react";
+// src/ObjectDetection.js
+import React, { useEffect, useRef } from "react";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import "@tensorflow/tfjs";
 
-export default function Camera_identify() {
+export default function Camera_Identify() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -26,6 +26,8 @@ export default function Camera_identify() {
       const model = await cocoSsd.load();
 
       const detectFrame = async () => {
+        if (!videoRef.current) return;
+
         const predictions = await model.detect(videoRef.current);
 
         const ctx = canvasRef.current.getContext("2d");
@@ -62,7 +64,14 @@ export default function Camera_identify() {
   }, []);
 
   return (
-    <div style={{ position: "relative", width: 640, height: 480 }}>
+    <div
+      style={{
+        position: "relative",
+        width: 640,
+        height: 480,
+        margin: "0 auto",
+      }}
+    >
       <video
         ref={videoRef}
         width="640"
