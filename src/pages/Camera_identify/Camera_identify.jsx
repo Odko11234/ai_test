@@ -6,13 +6,14 @@ const Camera_identify = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [facingMode, setFacingMode] = useState("environment");
+  const modelRef = useRef(null);
 
   useEffect(() => {
-    let model = null;
+    let stream;
 
     const setupCamera = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode },
           audio: false,
         });
@@ -25,24 +26,22 @@ const Camera_identify = () => {
     };
 
     const runDetection = async () => {
-      if (!videoRef.current || !canvasRef.current) return;
-      if (!model) return;
+      if (!videoRef.current || !canvasRef.current || !modelRef.current) return;
 
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
-      if (!ctx) return;
 
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
       const detectFrame = async () => {
-        if (!model || video.readyState !== 4) {
+        if (!modelRef.current || video.readyState !== 4) {
           requestAnimationFrame(detectFrame);
           return;
         }
 
-        const predictions = await model.detect(video);
+        const predictions = await modelRef.current.detect(video);
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -52,7 +51,7 @@ const Camera_identify = () => {
           ctx.strokeStyle = "lime";
           ctx.lineWidth = 3;
           ctx.strokeRect(x, y, width, height);
-          ctx.font = "20px Arial";
+          ctx.font = "18px Arial";
           ctx.fillStyle = "lime";
           ctx.fillText(
             `${pred.class} (${Math.round(pred.score * 100)}%)`,
@@ -69,7 +68,7 @@ const Camera_identify = () => {
 
     const init = async () => {
       await setupCamera();
-      model = await cocoSsd.load();
+      modelRef.current = await cocoSsd.load();
 
       if (videoRef.current) {
         videoRef.current.onloadeddata = () => {
@@ -79,6 +78,12 @@ const Camera_identify = () => {
     };
 
     init();
+
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
   }, [facingMode]);
 
   return (
